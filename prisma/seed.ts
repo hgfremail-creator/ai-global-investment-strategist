@@ -115,9 +115,13 @@ async function main() {
       `${ingest.macro} macro points, ${ingest.benchmarks} benchmark points, ${ingest.news} news`,
   );
 
-  // Initial strategy version
+  // Initial strategy version (dated to the demo dataset's "present")
   const { generateStrategy } = await import("../src/services/strategy");
-  const res = await generateStrategy(portfolio.id, { reason: "seed" });
+  const { DEMO_AS_OF } = await import("../src/data/providers/demo");
+  const res = await generateStrategy(portfolio.id, {
+    reason: "seed",
+    weekOf: new Date(DEMO_AS_OF),
+  });
   console.log(`  demo user ${email} / demodemo — strategy v${res.version}`);
 
   console.log("Seed complete.");

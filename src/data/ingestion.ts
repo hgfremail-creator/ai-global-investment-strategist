@@ -10,6 +10,7 @@ import {
 } from "./providers";
 import { MACRO_KEYS } from "./providers/types";
 import type { ProviderSourceMeta } from "./providers/types";
+import { setDemoClock, DEMO_AS_OF } from "./providers/demo";
 import { CURRENCIES, type Currency } from "@/lib/enums";
 
 // Data ingestion. Idempotent: prices/macro/benchmarks are append-only
@@ -78,8 +79,11 @@ export type IngestReport = {
 
 const EQUITY_LOOKBACK = 400;
 
-export async function ingestAll(opts: { lookbackDays?: number } = {}): Promise<IngestReport> {
+export async function ingestAll(opts: { lookbackDays?: number; asOf?: string } = {}): Promise<IngestReport> {
   sourceCache.clear();
+  // Demo provider only: advance the simulated clock so each weekly version sees
+  // a slightly evolved market. Real providers ignore this.
+  setDemoClock(opts.asOf ?? DEMO_AS_OF);
   const lookback = opts.lookbackDays ?? EQUITY_LOOKBACK;
   const report: IngestReport = {
     prices: 0, fundamentals: 0, macro: 0, news: 0, benchmarks: 0, fx: 0, usedDemoFallback: [],

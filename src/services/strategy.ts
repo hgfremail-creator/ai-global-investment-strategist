@@ -152,6 +152,12 @@ export async function generateStrategy(portfolioId: string, opts: GenerateOpts) 
     };
   });
 
+  const prev = await prisma.strategyVersion.findFirst({
+    where: { portfolioId },
+    orderBy: { version: "desc" },
+  });
+  const previousTickers = fromJson<{ ticker: string }[]>(prev?.allocationJson ?? "", []).map((r) => r.ticker);
+
   // ── Build ───────────────────────────────────────────────────────────
   const result = buildPortfolio({
     capitalUsdMinor: portfolio.capitalUsdMinor,
@@ -160,6 +166,7 @@ export async function generateStrategy(portfolioId: string, opts: GenerateOpts) 
     candidates,
     existing,
     horizonBucket: horizonBucket(horizon),
+    previousTickers,
   });
 
   const fx = getFxRates();
@@ -170,12 +177,6 @@ export async function generateStrategy(portfolioId: string, opts: GenerateOpts) 
       alloc: result.rows.map((r) => [r.ticker, r.weight]),
     }))
     .digest("hex");
-
-  const prev = await prisma.strategyVersion.findFirst({
-    where: { portfolioId },
-    orderBy: { version: "desc" },
-    include: { recommendations: true },
-  });
 
   if (prev && prev.dataHash === inputHash && !opts.force) {
     return { version: prev.version, created: false, strategyVersionId: prev.id };
@@ -253,6 +254,14 @@ export async function generateStrategy(portfolioId: string, opts: GenerateOpts) 
     await diffAndPersistChanges(sv.id, prev.allocationJson, allocationJson, prev.sleeveTargetsJson, toJson(sleeveTargets));
   }
 
+  // ── Structured weekly report + change-evidence enrichment ───────────
+  try {
+    const { buildResearchReport } = await import("./weeklyReport");
+    await buildResearchReport(sv.id, prev?.id ?? null);
+  } catch (err) {
+    console.error("weekly report build failed:", (err as Error).message);
+  }
+
   return {
     version, created: true, strategyVersionId: sv.id,
     rows: result.rows.length, warnings: result.warnings, recommendations: recSummary,
@@ -317,7 +326,7 @@ async function diffAndPersistChanges(
   for (const s of SLEEVES) {
     const p = prevSleeves[s] ?? 0;
     const n = newSleeves[s] ?? 0;
-    if (Math.abs(n - p) >= 0.01) {
+    if (Math.abs(n - p) >= 0.007) {
       changes.push({
         kind: "SLEEVE",
         label: SLEEVE_LABELS[s],
@@ -342,7 +351,7 @@ async function diffAndPersistChanges(
         reason: "New position — entered the portfolio on an improved relative score / sleeve fit.",
         evidenceJson: toJson([]),
       });
-    } else if (Math.abs(r.weight - p) >= 0.01) {
+    } else if (Math.abs(r.weight - p) >= 0.007) {
       changes.push({
         kind: "POSITION", label: r.ticker, previousValue: `${(p * 100).toFixed(1)}%`,
         newValue: `${(r.weight * 100).toFixed(1)}%`, deltaText: `${r.weight > p ? "+" : ""}${((r.weight - p) * 100).toFixed(1)}%`,

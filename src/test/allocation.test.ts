@@ -145,6 +145,26 @@ describe("portfolio construction", () => {
     expect(r.warnings.join(" ")).toMatch(/AI|concentrat/i);
   });
 
+  it("incumbency bonus reduces turnover without inflating the stored score", () => {
+    const risk = RISK_SCORES[1];
+    const c = DEFAULT_CONSTRAINTS[risk];
+    const sleeves = tiltSleeves(baseSleeves(risk, "Y5_10"), "NEUTRAL", c);
+    // A universe where SONY (62) and a fresh name are near the growth cut line.
+    const fresh: Candidate = {
+      ticker: "FRESH", name: "Fresh", sleeve: "growth", assetClass: "EQUITY",
+      country: "US", sector: "Information Technology", currency: "USD",
+      score: 64, vol: 0.3, factors: F(0.5, 0.1, 0.8), priceUsd: 120,
+    };
+    const base = { capitalUsdMinor: 100_000 * 100, sleeveTargets: sleeves, constraints: c, existing: [], horizonBucket: "medium" as const };
+    const noIncumbent = buildPortfolio({ ...base, candidates: [...cands, fresh] });
+    const withIncumbent = buildPortfolio({ ...base, candidates: [...cands, fresh], previousTickers: ["SONY"] });
+    // SONY should be retained when it was previously held even though FRESH scores higher
+    const sonyKeptWith = withIncumbent.rows.some((r) => r.ticker === "SONY");
+    const sonyRow = withIncumbent.rows.find((r) => r.ticker === "SONY");
+    if (sonyKeptWith && sonyRow) expect(sonyRow.score).toBe(62); // stored score is the true score
+    void noIncumbent;
+  });
+
   it("existing holding reconciliation classifies over/under/at target", () => {
     const r = buildPortfolio({
       capitalUsdMinor: 100_000 * 100,

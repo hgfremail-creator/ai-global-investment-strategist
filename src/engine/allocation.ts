@@ -39,7 +39,12 @@ export type AllocationInput = {
   candidates: Candidate[];
   existing: ExistingHolding[];
   horizonBucket: "short" | "medium" | "long";
+  /** Tickers held in the previous strategy version — given a small incumbency
+   *  bonus so the portfolio isn't fully reshuffled on marginal score changes. */
+  previousTickers?: string[];
 };
+
+const INCUMBENCY_BONUS = 4; // score points
 
 export type AllocationRow = {
   ticker: string;
@@ -229,11 +234,18 @@ function projectGroupConstraint(
 }
 
 export function buildPortfolio(input: AllocationInput): AllocationResult {
-  const { constraints: c, candidates, capitalUsdMinor } = input;
+  const { constraints: c, capitalUsdMinor } = input;
   const warnings: string[] = [];
   const bound: string[] = [];
 
+  // Apply the incumbency bonus to the working copy used for selection/weights.
+  const incumbents = new Set(input.previousTickers ?? []);
+  const candidates: Candidate[] = input.candidates.map((x) =>
+    incumbents.has(x.ticker) ? { ...x, score: Math.min(100, x.score + INCUMBENCY_BONUS) } : x,
+  );
+
   const byTicker = new Map(candidates.map((x) => [x.ticker, x]));
+  const trueScore = new Map(input.candidates.map((x) => [x.ticker, x.score]));
 
   // ── Steps A + B: select + weight per sleeve ──────────────────────────
   const weights = new Map<string, number>();
@@ -377,7 +389,7 @@ export function buildPortfolio(input: AllocationInput): AllocationResult {
       currency: cand.currency,
       weight: r.w,
       usdMinor: usd[i],
-      score: cand.score,
+      score: trueScore.get(cand.ticker) ?? cand.score,
       vol: cand.vol,
     };
   }).sort((a, b) => b.weight - a.weight);

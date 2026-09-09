@@ -18,29 +18,46 @@ import type {
   ProviderSourceMeta,
 } from "./types";
 
-export const DEMO_AS_OF = "2026-09-04"; // fixed anchor date for the whole demo dataset
+export const DEMO_AS_OF = "2026-09-04"; // the demo dataset's "present"
 const DAY = 86_400_000;
-const CANON_CALENDAR_DAYS = 1200; // canonical history window generated once, then sliced
+const CANON_START = "2022-06-01"; // canonical path generated once from here…
+const CANON_END = "2027-12-31"; // …to here, so advancing the clock reveals more of it
 
-function tradingDates(lookbackDays: number, asOf = DEMO_AS_OF): string[] {
-  const end = new Date(asOf + "T00:00:00Z").getTime();
+// Movable "today" for the demo dataset. The weekly-review job advances this so
+// each version sees a slightly evolved market. Defaults to DEMO_AS_OF.
+let DEMO_CLOCK = DEMO_AS_OF;
+export function setDemoClock(dateIso: string) {
+  DEMO_CLOCK = dateIso.slice(0, 10);
+}
+export function demoClock(): string {
+  return DEMO_CLOCK;
+}
+export function demoWeekIndex(): number {
+  return Math.max(0, Math.round((new Date(DEMO_CLOCK).getTime() - new Date(DEMO_AS_OF).getTime()) / (7 * DAY)));
+}
+
+function tradingDatesBetween(startIso: string, endIso: string): string[] {
   const out: string[] = [];
-  for (let i = lookbackDays; i >= 0; i--) {
-    const d = new Date(end - i * DAY);
+  let t = new Date(startIso + "T00:00:00Z").getTime();
+  const end = new Date(endIso + "T00:00:00Z").getTime();
+  while (t <= end) {
+    const d = new Date(t);
     const wd = d.getUTCDay();
-    if (wd === 0 || wd === 6) continue; // skip weekends
-    out.push(d.toISOString().slice(0, 10));
+    if (wd !== 0 && wd !== 6) out.push(d.toISOString().slice(0, 10));
+    t += DAY;
   }
   return out;
 }
 
-/** Slice the canonical (fixed-origin) series to the requested lookback so any
- *  lookback yields a consistent, continuous window. */
+function tradingDates(lookbackDays: number, asOf = DEMO_CLOCK): string[] {
+  const start = new Date(new Date(asOf).getTime() - lookbackDays * DAY).toISOString().slice(0, 10);
+  return tradingDatesBetween(start, asOf);
+}
+
+/** Slice the canonical series to [clock - lookback, clock]. */
 function windowed(all: PricePoint[], lookbackDays: number): PricePoint[] {
-  const cutoff = new Date(new Date(DEMO_AS_OF).getTime() - lookbackDays * DAY)
-    .toISOString()
-    .slice(0, 10);
-  return all.filter((p) => p.date >= cutoff);
+  const lo = new Date(new Date(DEMO_CLOCK).getTime() - lookbackDays * DAY).toISOString().slice(0, 10);
+  return all.filter((p) => p.date >= lo && p.date <= DEMO_CLOCK);
 }
 
 function demoSource(
@@ -64,21 +81,21 @@ function canonicalPath(sec: DemoSecurity): PricePoint[] {
   const hit = canonCache.get(sec.ticker);
   if (hit) return hit;
 
-  const dates = tradingDates(CANON_CALENDAR_DAYS);
-  const rng = seededRng("price", sec.ticker, "v2");
+  const dates = tradingDatesBetween(CANON_START, CANON_END);
+  const rng = seededRng("price", sec.ticker, "v3");
   const dt = 1 / 252;
   const sigma = sec.annualVol;
   const mu = sec.drift;
-  const start = Math.max(sec.anchorPrice * 0.2, sec.anchorPrice * Math.exp(-mu * (dates.length / 252)));
-  let price = start;
+  let price = sec.anchorPrice * 0.6;
   const pts: PricePoint[] = [];
   for (let i = 0; i < dates.length; i++) {
     price *= Math.exp((mu - 0.5 * sigma * sigma) * dt + sigma * Math.sqrt(dt) * gaussian(rng));
     const vol = Math.round(1_000_000 * (0.5 + rng()) * (sec.assetClass === "EQUITY" ? 1 : 0.2));
     pts.push({ date: dates[i], close: Math.round(price * 100) / 100, volume: vol });
   }
-  // rescale so the final close lands exactly on the anchor price
-  const scale = sec.anchorPrice / pts[pts.length - 1].close;
+  // rescale so the close AT DEMO_AS_OF sits on the anchor price
+  const atAsOf = pts.filter((p) => p.date <= DEMO_AS_OF).at(-1) ?? pts[pts.length - 1];
+  const scale = sec.anchorPrice / atAsOf.close;
   const scaled = pts.map((p) => ({ ...p, close: Math.round(p.close * scale * 100) / 100 }));
   canonCache.set(sec.ticker, scaled);
   return scaled;
@@ -87,6 +104,10 @@ function canonicalPath(sec: DemoSecurity): PricePoint[] {
 function fundamentalsFor(sec: DemoSecurity): FundamentalSnapshot {
   const rng = seededRng("fund", sec.ticker);
   const r = () => rng();
+  // small week-to-week drift so scores evolve across strategy versions
+  const wk = demoWeekIndex();
+  const wkRng = seededRng("fundwk", sec.ticker, wk);
+  const revisionDrift = (wkRng() - 0.5) * 0.03;
   const ai = sec.factors.aiFactor;
   const defensive = sec.factors.defensive;
   const isEquity = sec.assetClass === "EQUITY";
@@ -109,9 +130,9 @@ function fundamentalsFor(sec: DemoSecurity): FundamentalSnapshot {
 
   return {
     symbol: sec.ticker,
-    asOf: DEMO_AS_OF,
-    revenueGrowth,
-    epsGrowth,
+    asOf: demoClock(),
+    revenueGrowth: revenueGrowth != null ? revenueGrowth + revisionDrift * 0.5 : undefined,
+    epsGrowth: epsGrowth != null ? epsGrowth + revisionDrift : undefined,
     fcfMargin,
     roic,
     netDebtToEbitda,
@@ -123,8 +144,8 @@ function fundamentalsFor(sec: DemoSecurity): FundamentalSnapshot {
     peg,
     ps,
     fcfYield,
-    epsRevision4w: isEquity ? (r() - 0.45) * 0.06 : undefined,
-    epsRevision13w: isEquity ? (r() - 0.45) * 0.12 : undefined,
+    epsRevision4w: isEquity ? (r() - 0.45) * 0.06 + revisionDrift : undefined,
+    epsRevision13w: isEquity ? (r() - 0.45) * 0.12 + revisionDrift * 1.5 : undefined,
     expectedRevenueGrowth: revenueGrowth != null ? revenueGrowth * (0.8 + r() * 0.4) : undefined,
     expectedEpsGrowth: epsGrowth != null ? epsGrowth * (0.8 + r() * 0.4) : undefined,
     moat: ai > 0.7 || defensive > 0.65 ? "WIDE" : ai > 0.35 || defensive > 0.4 ? "NARROW" : "NONE",
@@ -262,12 +283,12 @@ export class DemoNewsProvider implements NewsProvider {
     for (const sym of symbols) {
       const sec = secByTicker(sym);
       if (!sec) continue;
-      const rng = seededRng("news", sym, DEMO_AS_OF);
+      const rng = seededRng("news", sym, demoClock());
       const n = 1 + Math.floor(rng() * 2);
       for (let i = 0; i < n; i++) {
         const tpl = NEWS_TEMPLATES[Math.floor(rng() * NEWS_TEMPLATES.length)];
         const daysAgo = Math.floor(rng() * sinceDays);
-        const when = new Date(new Date(DEMO_AS_OF).getTime() - daysAgo * DAY).toISOString();
+        const when = new Date(new Date(demoClock()).getTime() - daysAgo * DAY).toISOString();
         out.push({
           symbol: sym,
           title: tpl.t.replace("{name}", sec.name),
@@ -283,7 +304,7 @@ export class DemoNewsProvider implements NewsProvider {
   }
 
   async getMacroNews(regions: string[], sinceDays: number): Promise<NewsArticle[]> {
-    const rng = seededRng("macronews", regions.join(","), DEMO_AS_OF);
+    const rng = seededRng("macronews", regions.join(","), demoClock());
     const items = [
       "Central bank keeps policy rate unchanged; guidance broadly neutral",
       "Inflation print lands close to expectations; markets little changed",
@@ -294,7 +315,7 @@ export class DemoNewsProvider implements NewsProvider {
       region: regions[0] ?? "GLOBAL",
       title,
       publisher: "Demo Macro Wire (simulated)",
-      publishedAt: new Date(new Date(DEMO_AS_OF).getTime() - i * DAY - Math.floor(rng() * sinceDays) * DAY).toISOString(),
+      publishedAt: new Date(new Date(demoClock()).getTime() - i * DAY - Math.floor(rng() * sinceDays) * DAY).toISOString(),
       summary: "Simulated macro headline for demo purposes.",
       sentiment: (rng() - 0.5) * 0.2,
       source: demoSource("NEWS", "Simulated macro news item", "WEEK"),
