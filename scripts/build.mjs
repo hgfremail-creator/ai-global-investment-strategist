@@ -13,8 +13,12 @@ env.NODE_OPTIONS = [env.NODE_OPTIONS, "--require=./scripts/fs-readlink-shim.cjs"
   .filter(Boolean)
   .join(" ");
 
-const run = (cmd, args) => {
-  const r = spawnSync(cmd, args, { stdio: "inherit", shell: true, env });
+const run = (cmd, args, envOverride) => {
+  const r = spawnSync(cmd, args, {
+    stdio: "inherit",
+    shell: true,
+    env: envOverride ? { ...env, ...envOverride } : env,
+  });
   if (r.status !== 0) process.exit(r.status ?? 1);
 };
 
@@ -32,7 +36,17 @@ if (usingPostgres) {
 run("prisma", ["generate"]);
 
 if (usingPostgres && env.DATABASE_URL) {
-  run("prisma", ["db", "push", "--skip-generate", "--accept-data-loss"]);
+  // Prisma DDL (`db push`) wants a DIRECT connection; the app runtime uses the
+  // pooled one. Use an unpooled URL for this step if the platform provides one.
+  const directUrl =
+    env.DIRECT_URL ||
+    env.POSTGRES_URL_NON_POOLING ||
+    env.DATABASE_URL_UNPOOLED ||
+    env.POSTGRES_URL ||
+    env.DATABASE_URL;
+  run("prisma", ["db", "push", "--skip-generate", "--accept-data-loss"], {
+    DATABASE_URL: directUrl,
+  });
 }
 
 run("next", ["build", "--turbopack"]);

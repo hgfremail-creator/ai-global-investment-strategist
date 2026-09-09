@@ -37,8 +37,12 @@ try {
   );
   console.log("→ schema switched to postgresql");
 
+  const directUrl =
+    env.DIRECT_URL || env.POSTGRES_URL_NON_POOLING || env.DATABASE_URL_UNPOOLED || env.DATABASE_URL;
   failed ||= run("prisma", ["generate"]);
-  failed ||= run("prisma", ["db", "push", "--skip-generate", "--accept-data-loss"]);
+  failed ||= run("prisma", ["db", "push", "--skip-generate", "--accept-data-loss"], {
+    env: { ...env, DATABASE_URL: directUrl },
+  });
   failed ||= run("npx", ["tsx", "prisma/seed.ts"]);
 } finally {
   copyFileSync(BACKUP, SCHEMA);
