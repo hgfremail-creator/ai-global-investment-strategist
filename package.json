@@ -15,6 +15,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:ingest": "tsx scripts/ingest.ts",
     "db:reset": "tsx prisma/reset.ts && npm run db:seed",
     "cron:weekly": "tsx scripts/run-weekly.ts"
   },

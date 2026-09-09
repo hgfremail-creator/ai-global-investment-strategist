@@ -17,7 +17,7 @@ keeps an immutable history of every recommendation.
 | Phase | Scope | State |
 |---|---|---|
 | **1** | Architecture, DB schema + migration, demo universe seed, auth, app shell, onboarding, disclaimer gate, strategy/history versioning skeleton, test harness | ✅ done |
-| 2 | Market/fundamental/macro/news data layer (provider interfaces + deterministic demo provider), Markets page | ⬜ |
+| **2** | Data layer: provider interfaces + deterministic demo provider + FRED & NewsAPI adapters, idempotent ingestion, Markets page | ✅ done |
 | 3 | Indicator + scoring engine, market-regime engine, Research page | ⬜ |
 | 4 | Portfolio construction engine (selection, constraints, FX), Strategy + Portfolio pages | ⬜ |
 | 5 | AI reasoning layer (Anthropic structured output + deterministic fallback), "why / why not", committee, devil's advocate | ⬜ |
@@ -60,7 +60,8 @@ node -e "console.log('CRON_SECRET='+require('crypto').randomBytes(32).toString('
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Vitest engine/unit suite |
 | `npm run db:migrate` | Apply Prisma migrations (dev) |
-| `npm run db:seed` | Seed demo data |
+| `npm run db:seed` | Seed demo data (incl. initial data ingestion) |
+| `npm run db:ingest` | Refresh market/macro/news data (`-- --lookback N`) |
 | `npm run db:reset` | Drop DB, re-migrate, re-seed |
 | `npm run cron:weekly` | Run the weekly review job locally |
 

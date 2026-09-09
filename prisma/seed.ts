@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaBetterSQLite3 } from "@prisma/adapter-better-sqlite3";
 import bcrypt from "bcryptjs";
-import { MARKETS, SECURITIES } from "./demo-data/universe";
+import { MARKETS, SECURITIES } from "../src/data/universe";
 import { sqliteUrl } from "../src/lib/db-path";
 
 const prisma = new PrismaClient({ adapter: new PrismaBetterSQLite3({ url: sqliteUrl() }) });
@@ -100,6 +100,20 @@ async function main() {
       update: {},
     });
   }
+
+  // Ingest market/fundamental/macro/news data (demo provider unless keys set)
+  const { ingestAll } = await import("../src/data/ingestion");
+  const { providerStatus } = await import("../src/data/providers");
+  const status = providerStatus();
+  console.log(
+    `  providers: market=${status.marketData.label}${status.marketData.isDemo ? " (sim)" : ""}, ` +
+      `macro=${status.macro.label}, news=${status.news.label}`,
+  );
+  const ingest = await ingestAll({ lookbackDays: 400 });
+  console.log(
+    `  ingested: ${ingest.prices} prices, ${ingest.fundamentals} fundamentals, ` +
+      `${ingest.macro} macro points, ${ingest.benchmarks} benchmark points, ${ingest.news} news`,
+  );
 
   // Initial strategy version
   const { generateStrategy } = await import("../src/services/strategy");
