@@ -21,7 +21,7 @@ keeps an immutable history of every recommendation.
 | **3** | Analysis layer: indicators, 8-component 0–100 scoring model, 10-indicator market-regime engine, Research pages | ✅ done |
 | **4** | Portfolio construction engine: sleeve tilts, per-sleeve selection, risk-parity weighting, constraint projection, FX, existing-holdings reconciliation, exact-100%; Strategy + Portfolio + Dashboard wired to real allocations | ✅ done |
 | **5** | AI reasoning layer: Anthropic structured-output client + Zod + guardrails + deterministic fallback writer + `AIAnalysis` audit; per-position thesis/catalysts/risks/invalidation/committee/devil's-advocate; Opportunities page + "why not" rejected candidates | ✅ done |
-| 6 | Risk engine + dashboard, factor look-through, stress tests | ⬜ |
+| **6** | Risk engine: synthetic-portfolio vol/drawdown/Sharpe/Sortino (correlation-floor blended), HHI, factor look-through, valuation/liquidity/geopolitical gauges; 5 stress-test scenarios; Risk dashboard | ✅ done |
 | 7 | Weekly strategy engine, change diffing + explanations, Weekly Review + report | ⬜ |
 | 8 | Historical tracking + version comparison | ⬜ |
 | 9 | Stress-test UI, what-if tool, natural-language advisor | ⬜ |

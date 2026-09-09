@@ -230,6 +230,14 @@ export async function generateStrategy(portfolioId: string, opts: GenerateOpts) 
     },
   });
 
+  // ── Risk metrics + stress tests ────────────────────────────────────
+  try {
+    const { computeAndPersistRisk } = await import("./risk");
+    await computeAndPersistRisk(sv.id);
+  } catch (err) {
+    console.error("risk computation failed:", (err as Error).message);
+  }
+
   // ── Per-position recommendations (AI reasoning layer, or fallback) ──
   let recSummary: { usedFallback: boolean; count: number } | null = null;
   try {
