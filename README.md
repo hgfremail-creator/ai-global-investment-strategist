@@ -18,7 +18,7 @@ keeps an immutable history of every recommendation.
 |---|---|---|
 | **1** | Architecture, DB schema + migration, demo universe seed, auth, app shell, onboarding, disclaimer gate, strategy/history versioning skeleton, test harness | ✅ done |
 | **2** | Data layer: provider interfaces + deterministic demo provider + FRED & NewsAPI adapters, idempotent ingestion, Markets page | ✅ done |
-| 3 | Indicator + scoring engine, market-regime engine, Research page | ⬜ |
+| **3** | Analysis layer: indicators, 8-component 0–100 scoring model, 10-indicator market-regime engine, Research pages | ✅ done |
 | 4 | Portfolio construction engine (selection, constraints, FX), Strategy + Portfolio pages | ⬜ |
 | 5 | AI reasoning layer (Anthropic structured output + deterministic fallback), "why / why not", committee, devil's advocate | ⬜ |
 | 6 | Risk engine + dashboard, factor look-through, stress tests | ⬜ |

@@ -6,44 +6,29 @@ import { DEFAULT_CONSTRAINTS, type ConstraintSet } from "@/lib/config";
 import { type Horizon, type RiskScore, SLEEVES } from "@/lib/enums";
 import { baseSleeves, tiltSleeves } from "@/engine/sleeves";
 import { getFxRates } from "@/data/fx";
+import { runAnalysis } from "./analysis";
 
-// NOTE: This is the orchestration seam. The deterministic sub-engines
-// (regime, scoring, allocation, risk, AI narrative) are layered in during their
-// respective phases and called from here. For now it produces a coherent
-// sleeve-level strategy version so the UI and history/versioning work end to end.
+// Orchestration seam. Calls the deterministic Analysis layer (scoring + regime),
+// then the sleeve engine. Name-level selection + the AI narrative are layered in
+// during Phases 4–5 and called from here.
 
 export type GenerateOpts = { reason: string; force?: boolean; weekOf?: Date };
 
 async function currentRegime() {
-  // Provisional regime until the regime engine (Phase 3) is wired in.
-  const existing = await prisma.marketRegime.findFirst({ orderBy: { asOf: "desc" } });
-  if (existing) return existing;
-  const source = await prisma.source.create({
-    data: {
-      type: "METHODOLOGY",
-      title: "Provisional regime classification (pre-engine)",
-      publisher: "AI Global Investment Strategist",
-      freshness: "TODAY",
-      isDemo: true,
-    },
-  });
+  // Ensure scores + regime are computed for the latest ingested data, then use them.
+  const latestPrice = await prisma.price.findFirst({ orderBy: { date: "desc" }, select: { date: true } });
+  const latestRegime = await prisma.marketRegime.findFirst({ orderBy: { asOf: "desc" } });
+  const stale =
+    !latestRegime ||
+    (latestPrice && latestRegime.asOf.getTime() < latestPrice.date.getTime());
+  if (stale) {
+    await runAnalysis();
+  }
+  const regime = await prisma.marketRegime.findFirst({ orderBy: { asOf: "desc" } });
+  if (regime) return regime;
+  // Last-resort neutral (e.g. no data ingested yet).
   return prisma.marketRegime.create({
-    data: {
-      asOf: new Date(),
-      regime: "NEUTRAL",
-      score: 0,
-      driversJson: toJson([
-        {
-          indicator: "Composite",
-          value: 0,
-          vote: 0,
-          weight: 1,
-          rationale:
-            "Regime engine not yet active — defaulting to Neutral. Replaced once the indicator engine runs.",
-          sourceId: source.id,
-        },
-      ]),
-    },
+    data: { asOf: new Date(), regime: "NEUTRAL", score: 0, driversJson: toJson([]) },
   });
 }
 
