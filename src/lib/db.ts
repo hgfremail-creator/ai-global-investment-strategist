@@ -7,9 +7,12 @@ import { sqliteUrl } from "./db-path";
 // works on platforms without a native Prisma query engine (e.g. Windows on ARM).
 //
 // Production PostgreSQL (e.g. Vercel): set DATABASE_PROVIDER=postgresql + a
-// postgres DATABASE_URL. `npm run build` then swaps the schema datasource
-// provider and runs `prisma db push`. Both adapters are imported statically;
-// only the configured one is instantiated. See DEPLOY.md.
+// postgres connection string. Both adapters are imported statically; only the
+// configured one is instantiated. See DEPLOY.md.
+//
+// The client is created LAZILY (on first query) via a Proxy so that
+// `next build`'s page-data collection can import route modules without a live
+// database configuration.
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -45,6 +48,17 @@ function createClient(): PrismaClient {
   });
 }
 
-export const prisma = globalForPrisma.prisma ?? createClient();
+function getClient(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createClient();
+  }
+  return globalForPrisma.prisma;
+}
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, prop, receiver) {
+    const c = getClient();
+    const value = Reflect.get(c, prop, receiver);
+    return typeof value === "function" ? value.bind(c) : value;
+  },
+});

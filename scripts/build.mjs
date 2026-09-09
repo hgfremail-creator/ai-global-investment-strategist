@@ -35,18 +35,26 @@ if (usingPostgres) {
 
 run("prisma", ["generate"]);
 
-if (usingPostgres && env.DATABASE_URL) {
+if (usingPostgres) {
   // Prisma DDL (`db push`) wants a DIRECT connection; the app runtime uses the
-  // pooled one. Use an unpooled URL for this step if the platform provides one.
+  // pooled one. Accept whichever env var name the platform's DB integration set.
   const directUrl =
     env.DIRECT_URL ||
     env.POSTGRES_URL_NON_POOLING ||
     env.DATABASE_URL_UNPOOLED ||
-    env.POSTGRES_URL ||
-    env.DATABASE_URL;
-  run("prisma", ["db", "push", "--skip-generate", "--accept-data-loss"], {
-    DATABASE_URL: directUrl,
-  });
+    env.DATABASE_URL ||
+    env.POSTGRES_PRISMA_URL ||
+    env.POSTGRES_URL;
+  if (directUrl) {
+    run("prisma", ["db", "push", "--skip-generate", "--accept-data-loss"], {
+      DATABASE_URL: directUrl,
+    });
+  } else {
+    console.warn(
+      "build: DATABASE_PROVIDER=postgresql but no connection string in env — " +
+        "skipping `prisma db push`. Set DATABASE_URL and redeploy, then run the seed.",
+    );
+  }
 }
 
 run("next", ["build", "--turbopack"]);
