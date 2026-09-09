@@ -27,20 +27,19 @@ keeps an immutable history of every recommendation.
 | **9** | Natural-language advisor (LLM path + deterministic intent router, answers grounded in stored data with citations); What-If tool (recompute for changed capital/risk/horizon/excluded sectors/min-gold + custom market shock) | ✅ done |
 | **10** | Paper-performance engine (chains each version's allocation over its live period → NAV vs MSCI World + blended benchmark), performance + drawdown charts on Dashboard, a11y (skip link, aria-current, focus rings) | ✅ done |
 | **11** | Full spec §47 sweep: 60 unit tests + 9 integration tests (temp SQLite DB, real pipeline) covering 100%-allocation, risk/horizon/capital recalculation, weekly-change identification, source attachment, no-rec-without-evidence, immutability, determinism, currency; `verify:no-secrets` client-bundle scan; source-hygiene test; SECURITY + COMPLIANCE checklists | ✅ done |
-| 12 | Production hardening (Postgres path, CSP, rate limits, CI, final docs) | ⬜ |
+| **12** | Production hardening: PostgreSQL path (`@prisma/adapter-pg` branch + provider swap + docker-compose + Postgres CI job), CSP + per-route rate limiting, GitHub Actions CI, `docs/` complete (METHODOLOGY, API, + the 6 others) | ✅ done |
 
-See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full design and roadmap.
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full design and roadmap. **All 12 phases complete.**
 
 ---
 
 ## Quick start
 
 ```bash
-npm install
-npm run approve-scripts        # if prompted — allow better-sqlite3 / prisma / esbuild build scripts
-cp .env.example .env           # then set AUTH_SECRET and CRON_SECRET (see below)
+npm install                    # allow build scripts for better-sqlite3 / prisma / esbuild if your npm prompts
+cp .env.example .env           # set AUTH_SECRET + CRON_SECRET (generator below); everything else is optional
 npm run db:migrate             # create the SQLite dev database
-npm run db:seed                # load the demo universe + demo user
+npm run db:seed                # load the demo universe + demo user + first strategy
 npm run dev                    # http://localhost:3000
 ```
 
@@ -94,6 +93,30 @@ node -e "console.log('CRON_SECRET='+require('crypto').randomBytes(32).toString('
 
 Next.js 15 (App Router) · React 19 · TypeScript · Tailwind v4 · Prisma (SQLite dev / Postgres
 prod) · Recharts · Anthropic API (optional) · Vitest · Zod · decimal.js.
+
+## Deploying with PostgreSQL
+
+1. `docker compose up -d db` (or point at any Postgres).
+2. In `.env`: `DATABASE_PROVIDER=postgresql` and a `postgresql://…` `DATABASE_URL`.
+3. In `prisma/schema.prisma`, change the datasource `provider` to `"postgresql"`.
+4. `npm i @prisma/adapter-pg pg && npx prisma generate && npx prisma migrate deploy`.
+   `src/lib/db.ts` then uses `@prisma/adapter-pg` automatically. CI runs the integration
+   suite against Postgres on every push.
+
+## Documentation
+
+| Doc | Contents |
+|---|---|
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | full design, data model, layered engine, roadmap |
+| [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) | the investment philosophy and how the layers fit together |
+| [`docs/SCORING_MODEL.md`](docs/SCORING_MODEL.md) | the 8-component 0–100 score + AI-exposure sub-model |
+| [`docs/PORTFOLIO_ALGORITHM.md`](docs/PORTFOLIO_ALGORITHM.md) | sleeve targets → selection → constrained optimiser |
+| [`docs/WEEKLY_REFRESH.md`](docs/WEEKLY_REFRESH.md) | the weekly review pipeline + immutability |
+| [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) | provider adapters, macro series map, provenance |
+| [`docs/AI_PROMPTS.md`](docs/AI_PROMPTS.md) | the reasoning-layer contract, prompts, guardrails, fallback |
+| [`docs/API.md`](docs/API.md) | every route, request/response shapes |
+| [`docs/SECURITY_CHECKLIST.md`](docs/SECURITY_CHECKLIST.md) | controls + what to run before deploy |
+| [`docs/COMPLIANCE_CHECKLIST.md`](docs/COMPLIANCE_CHECKLIST.md) | product guardrails + pre-commercial review list |
 
 ## Repository layout
 

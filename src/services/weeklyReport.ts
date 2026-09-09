@@ -43,7 +43,6 @@ export async function buildResearchReport(strategyVersionId: string, prevVersion
         include: { regime: true },
       })
     : null;
-  const prevAlloc = prev ? fromJson<AllocationRow[]>(prev.allocationJson, []) : [];
   const prevSleeves = prev ? fromJson<Record<Sleeve, number>>(prev.sleeveTargetsJson, {} as Record<Sleeve, number>) : null;
 
   // ── enrich change rows with evidence ────────────────────────────────
@@ -107,7 +106,6 @@ export async function buildResearchReport(strategyVersionId: string, prevVersion
   const changes = await prisma.strategyChange.findMany({ where: { strategyVersionId } });
 
   // ── sections ────────────────────────────────────────────────────────
-  const buys = sv.recommendations.filter((r) => r.action === "BUY" || r.action === "STRONG_BUY");
   const reduces = sv.recommendations.filter((r) => r.action === "REDUCE");
   const sells = sv.recommendations.filter((r) => r.action === "SELL");
   const topByConviction = [...sv.recommendations]

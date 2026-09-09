@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { runWhatIf } from "@/services/whatIf";
+import { rateLimit } from "@/lib/rateLimit";
 import { HORIZONS } from "@/lib/enums";
 
 const schema = z.object({
@@ -27,6 +28,15 @@ const schema = z.object({
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Unauthenticated" }, { status: 401 });
+
+  const rl = rateLimit(`whatif:${user.id}`, { capacity: 15, refillPerSec: 0.3 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many requests — slow down." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+    );
+  }
+
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid input", details: parsed.error.flatten() }, { status: 400 });
 

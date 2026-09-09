@@ -2,7 +2,7 @@ import Link from "next/link";
 import { pageContext } from "@/services/page";
 import { getLatestStrategy } from "@/services/strategyRead";
 import { getPerformance } from "@/services/performance";
-import { Card, Stat, Badge, Empty, DemoBadge } from "@/components/ui";
+import { Card, Stat, Empty, DemoBadge } from "@/components/ui";
 import { Donut, LegendList } from "@/components/charts/Donut";
 import { PerformanceChart, DrawdownChart } from "@/components/charts/PerformanceChart";
 import { formatMoney, formatPercent } from "@/lib/money";

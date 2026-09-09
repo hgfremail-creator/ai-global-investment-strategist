@@ -4,12 +4,14 @@ import path from "node:path";
 // Runs in every integration test worker BEFORE any @/ import, so the Prisma
 // singleton in @/lib/db picks up the temp database created by globalSetup.
 const sidecar = path.join(process.cwd(), ".vitest-it-db");
+let url: string;
 try {
-  process.env.DATABASE_URL = readFileSync(sidecar, "utf8").trim();
+  url = readFileSync(sidecar, "utf8").trim();
 } catch {
   throw new Error("integration setup: missing .vitest-it-db (globalSetup did not run)");
 }
-process.env.DATABASE_PROVIDER = "sqlite";
+process.env.DATABASE_URL = url;
+if (!url.startsWith("postgres")) process.env.DATABASE_PROVIDER = "sqlite";
 process.env.AUTH_SECRET = "integration-test-secret-integration-test-secret";
 process.env.MARKET_DATA_PROVIDER = "demo";
 process.env.MACRO_PROVIDER = "demo";

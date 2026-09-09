@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: "file:./dev.db"
+      DATABASE_PROVIDER: "sqlite"
+      AUTH_SECRET: "ci-secret-ci-secret-ci-secret-ci-secret"
+      CRON_SECRET: "ci-cron-secret-ci-cron-secret"
+      MARKET_DATA_PROVIDER: "demo"
+      NODE_OPTIONS: "--max-old-space-size=4096"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run db:seed
+      - run: npm run test:integration
+      - run: npm run verify:history
+      - run: npm run build
+      - run: npm run verify:no-secrets
+
+  test-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: strategist
+          POSTGRES_PASSWORD: strategist
+          POSTGRES_DB: strategist
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U strategist" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: "postgresql://strategist:strategist@localhost:5432/strategist?schema=public"
+      DATABASE_PROVIDER: "postgresql"
+      AUTH_SECRET: "ci-secret-ci-secret-ci-secret-ci-secret"
+      MARKET_DATA_PROVIDER: "demo"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm i @prisma/adapter-pg pg
+      # swap the datasource provider for the Postgres run
+      - run: sed -i 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+      - run: npm run db:seed
+      - run: npm run test:integration
