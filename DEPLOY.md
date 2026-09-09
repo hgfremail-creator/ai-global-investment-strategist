@@ -38,6 +38,7 @@ git push -u origin main
 | `FRED_API_KEY` | your key | optional — enables the real macro provider |
 | `NEWSAPI_KEY` | your key | optional — enables real company/macro news |
 | `SEED_DEMO_USER` | `false` | optional — skip the `demo@strategist.app` account when seeding |
+| `OPEN_ACCESS` | `true` | optional — **no login at all**: every visitor lands on the dashboard sharing the one seeded demo portfolio. Leave unset for per-user accounts. |
 
 Generators:
 ```bash

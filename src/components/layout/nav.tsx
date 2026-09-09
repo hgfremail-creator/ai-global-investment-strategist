@@ -19,7 +19,7 @@ const NAV = [
   { href: "/advisor", label: "AI Advisor", hint: "Ask questions" },
 ];
 
-export function Sidebar({ userEmail }: { userEmail: string }) {
+export function Sidebar({ userEmail, openAccess = false }: { userEmail: string; openAccess?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -62,11 +62,13 @@ export function Sidebar({ userEmail }: { userEmail: string }) {
       </nav>
       <div className="border-t border-[var(--color-border)] px-4 py-3 text-[11px] text-[var(--color-muted)]">
         <div className="truncate" title={userEmail}>
-          {userEmail}
+          {openAccess ? "Open access" : userEmail}
         </div>
-        <button onClick={logout} className="mt-1 text-[var(--color-accent)] hover:underline">
-          Sign out
-        </button>
+        {!openAccess && (
+          <button onClick={logout} className="mt-1 text-[var(--color-accent)] hover:underline">
+            Sign out
+          </button>
+        )}
       </div>
     </aside>
   );

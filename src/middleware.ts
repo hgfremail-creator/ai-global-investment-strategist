@@ -2,9 +2,21 @@ import { NextResponse, type NextRequest } from "next/server";
 import { readSessionToken, SESSION_COOKIE } from "@/lib/session-token";
 
 const PUBLIC_PATHS = ["/login", "/register", "/legal"];
+const OPEN_ACCESS = process.env.OPEN_ACCESS === "true";
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Open-access deployment: no auth gate, and the auth pages just bounce to the app.
+  if (OPEN_ACCESS) {
+    if (pathname === "/login" || pathname === "/register") {
+      const url = req.nextUrl.clone();
+      url.pathname = "/dashboard";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
 
   const isPublic =
     PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
