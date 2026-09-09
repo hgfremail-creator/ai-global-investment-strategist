@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { pageContext } from "@/services/page";
 import { getLatestStrategy } from "@/services/strategyRead";
+import { getPerformance } from "@/services/performance";
 import { Card, Stat, Badge, Empty, DemoBadge } from "@/components/ui";
 import { Donut, LegendList } from "@/components/charts/Donut";
+import { PerformanceChart, DrawdownChart } from "@/components/charts/PerformanceChart";
 import { formatMoney, formatPercent } from "@/lib/money";
 import {
   HORIZON_LABELS,
@@ -21,7 +23,10 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const { ctx } = await pageContext();
-  const s = await getLatestStrategy(ctx.portfolio.id);
+  const [s, perf] = await Promise.all([
+    getLatestStrategy(ctx.portfolio.id),
+    getPerformance(ctx.portfolio.id),
+  ]);
 
   const sleeveData = s
     ? Object.entries(s.sleeveTargets)
@@ -54,6 +59,30 @@ export default async function DashboardPage() {
           <Stat label="Objective" value={OBJECTIVE_LABELS[ctx.riskProfile.objective as Objective]} />
         </div>
       </Card>
+
+      {perf && perf.series.length >= 2 && (
+        <Card
+          title="Paper portfolio performance"
+          subtitle="Hypothetical — chains each strategy version over the period it was live · indexed to 100"
+        >
+          <div className="mb-3 grid grid-cols-2 gap-4 sm:grid-cols-5">
+            <Stat
+              label="Total return"
+              value={formatPercent(perf.totalReturn)}
+              tone={perf.totalReturn >= 0 ? "up" : "down"}
+              sub={`vs ${formatPercent(perf.benchmarkTotalReturn)} bench`}
+            />
+            <Stat label="Last week" value={perf.weekReturn == null ? "—" : formatPercent(perf.weekReturn)} tone={(perf.weekReturn ?? 0) >= 0 ? "up" : "down"} />
+            <Stat label="Max drawdown" value={formatPercent(perf.maxDrawdown)} tone="down" />
+            <Stat label="Volatility (ann.)" value={formatPercent(perf.annualisedVol)} />
+            <Stat label="Sharpe / Sortino" value={`${perf.sharpe?.toFixed(2) ?? "—"} / ${perf.sortino?.toFixed(2) ?? "—"}`} />
+          </div>
+          <PerformanceChart data={perf.series} benchmarkLabel={perf.benchmarkLabel} blendedLabel={perf.blendedLabel} />
+          <div className="mt-2">
+            <DrawdownChart data={perf.series} />
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card

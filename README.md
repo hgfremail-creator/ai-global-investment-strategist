@@ -25,7 +25,8 @@ keeps an immutable history of every recommendation.
 | **7** | Weekly strategy engine: movable demo clock, full refresh pipeline, week-over-week diff with concrete evidence per change, incumbency bonus (low turnover), 15-section weekly report, Weekly Review page + "run now" button | ✅ done |
 | **8** | Historical tracking: immutable version browser, side-by-side compare (sleeve/position/factor deltas + reasons), stacked sleeve-history chart, per-version historical snapshot; `npm run verify:history` immutability check | ✅ done |
 | **9** | Natural-language advisor (LLM path + deterministic intent router, answers grounded in stored data with citations); What-If tool (recompute for changed capital/risk/horizon/excluded sectors/min-gold + custom market shock) | ✅ done |
-| 10–12 | UI refinement, full test sweep, production hardening | ⬜ |
+| **10** | Paper-performance engine (chains each version's allocation over its live period → NAV vs MSCI World + blended benchmark), performance + drawdown charts on Dashboard, a11y (skip link, aria-current, focus rings) | ✅ done |
+| 11–12 | Full spec §47 test sweep, production hardening | ⬜ |
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full design and roadmap.
 

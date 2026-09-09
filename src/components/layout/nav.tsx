@@ -37,15 +37,16 @@ export function Sidebar({ userEmail }: { userEmail: string }) {
           Strategist
         </div>
       </div>
-      <nav className="flex flex-1 flex-row flex-wrap gap-1 px-2 pb-2 md:flex-col md:overflow-y-auto">
+      <nav aria-label="Primary" className="flex flex-1 flex-row flex-wrap gap-1 px-2 pb-2 md:flex-col md:overflow-y-auto">
         {NAV.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className={cx(
-                "group rounded-md px-3 py-2 text-sm transition-colors",
+                "group rounded-md px-3 py-2 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]",
                 active
                   ? "bg-[var(--color-accent)]/15 text-[var(--color-accent)]"
                   : "text-[var(--color-muted)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-fg)]",
