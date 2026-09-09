@@ -2,8 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { pageContext } from "@/services/page";
 import { getResearchDetail } from "@/services/research";
+import { getRecommendationForTicker } from "@/services/recommendationsRead";
 import { Card, Badge, DemoBadge, EpistemicLine } from "@/components/ui";
 import { ScoreBreakdown, ScoreDial } from "@/components/ScoreBreakdown";
+import { RecommendationCard } from "@/components/RecommendationCard";
 import { PriceChart } from "@/components/charts/PriceChart";
 import { formatPercent } from "@/lib/money";
 
@@ -20,10 +22,11 @@ export default async function ResearchDetailPage({
 }: {
   params: Promise<{ ticker: string }>;
 }) {
-  await pageContext();
+  const { ctx } = await pageContext();
   const { ticker } = await params;
   const d = await getResearchDetail(decodeURIComponent(ticker));
   if (!d) notFound();
+  const rec = await getRecommendationForTicker(ctx.portfolio.id, d.ticker);
 
   return (
     <div className="mx-auto max-w-4xl space-y-5">
@@ -46,6 +49,15 @@ export default async function ResearchDetailPage({
         </div>
         {d.score && <ScoreDial value={d.score.overall} />}
       </div>
+
+      {rec && (
+        <div>
+          <h2 className="mb-2 text-sm font-semibold">
+            {rec.targetWeight > 0 ? "Current recommendation" : "Why this is not in the portfolio"}
+          </h2>
+          <RecommendationCard r={rec} showLink={false} />
+        </div>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <Card title="Price" subtitle={d.score ? `as of ${d.score.asOf}` : undefined}>

@@ -230,12 +230,25 @@ export async function generateStrategy(portfolioId: string, opts: GenerateOpts) 
     },
   });
 
+  // ── Per-position recommendations (AI reasoning layer, or fallback) ──
+  let recSummary: { usedFallback: boolean; count: number } | null = null;
+  try {
+    const { generateRecommendations } = await import("./recommendations");
+    const r = await generateRecommendations(sv.id);
+    recSummary = { usedFallback: r.usedFallback, count: r.count };
+  } catch (err) {
+    console.error("recommendation generation failed:", (err as Error).message);
+  }
+
   // ── Change diff vs previous version (skipped for the first version) ──
   if (prev) {
     await diffAndPersistChanges(sv.id, prev.allocationJson, allocationJson, prev.sleeveTargetsJson, toJson(sleeveTargets));
   }
 
-  return { version, created: true, strategyVersionId: sv.id, rows: result.rows.length, warnings: result.warnings };
+  return {
+    version, created: true, strategyVersionId: sv.id,
+    rows: result.rows.length, warnings: result.warnings, recommendations: recSummary,
+  };
 }
 
 function buildNarrative(a: {
