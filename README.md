@@ -19,7 +19,7 @@ keeps an immutable history of every recommendation.
 | **1** | Architecture, DB schema + migration, demo universe seed, auth, app shell, onboarding, disclaimer gate, strategy/history versioning skeleton, test harness | ✅ done |
 | **2** | Data layer: provider interfaces + deterministic demo provider + FRED & NewsAPI adapters, idempotent ingestion, Markets page | ✅ done |
 | **3** | Analysis layer: indicators, 8-component 0–100 scoring model, 10-indicator market-regime engine, Research pages | ✅ done |
-| 4 | Portfolio construction engine (selection, constraints, FX), Strategy + Portfolio pages | ⬜ |
+| **4** | Portfolio construction engine: sleeve tilts, per-sleeve selection, risk-parity weighting, constraint projection, FX, existing-holdings reconciliation, exact-100%; Strategy + Portfolio + Dashboard wired to real allocations | ✅ done |
 | 5 | AI reasoning layer (Anthropic structured output + deterministic fallback), "why / why not", committee, devil's advocate | ⬜ |
 | 6 | Risk engine + dashboard, factor look-through, stress tests | ⬜ |
 | 7 | Weekly strategy engine, change diffing + explanations, Weekly Review + report | ⬜ |
