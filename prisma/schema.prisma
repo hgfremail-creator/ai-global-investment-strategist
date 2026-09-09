@@ -1,0 +1,466 @@
+// AI Global Investment Strategist — data model
+// Dev: SQLite (provider below). Prod: change provider to "postgresql" and DATABASE_URL.
+// Cross-DB portability rules used here:
+//   * enums are stored as String with app-level unions (src/lib/enums.ts)
+//   * JSON is stored as String (JSON.stringify) via helpers in src/lib/json.ts
+//   * money is stored as Int minor units (cents); ratios/scores as Float
+// Immutable tables (never UPDATE after insert): StrategyVersion, Recommendation,
+//   ResearchReport, AIAnalysis, PortfolioSnapshot, MarketRegime, SecurityScore.
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────── Identity ───────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  baseCurrency String   @default("USD") // USD | EUR | JPY | TWD
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  riskProfiles RiskProfile[]
+  portfolios   Portfolio[]
+}
+
+model RiskProfile {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  active          Boolean  @default(true)
+  riskScore       Int // 1 = HIGHEST risk ... 5 = LOWEST risk
+  horizon         String // LT_1Y | Y1_3 | Y3_5 | Y5_10 | GT_10Y
+  objective       String // GROWTH | BALANCED_GROWTH | PRESERVATION | INCOME | GROWTH_PROTECTION
+  constraintsJson String // typed ConstraintSet (src/lib/config.ts) — max weights, score weights, vol cap
+  createdAt       DateTime @default(now())
+
+  @@index([userId, active])
+}
+
+// ─────────────────────────────── Universe ───────────────────────────────
+
+model Market {
+  id              String     @id @default(cuid())
+  code            String     @unique // US | JP | TW | FR | DE
+  name            String
+  currency        String
+  benchmarkSymbol String
+  securities      Security[]
+  benchmarks      Benchmark[]
+}
+
+model Security {
+  id              String  @id @default(cuid())
+  ticker          String
+  name            String
+  marketId        String
+  market          Market  @relation(fields: [marketId], references: [id])
+  countryCode     String // US | JP | TW | FR | DE | GLOBAL
+  sector          String
+  industry        String
+  currency        String
+  assetClass      String // EQUITY | GOLD | GOV_BOND | IG_BOND | CASH | DIVERSIFIER
+  listingExchange String?
+  factorLoadings  String // JSON: { aiFactor, semiconductor, usTech, defensive, rates, gold } in 0..1
+  isDemo          Boolean @default(true)
+
+  prices          Price[]
+  fundamentals    Fundamental[]
+  scores          SecurityScore[]
+  positions       PortfolioPosition[]
+  recommendations Recommendation[]
+  newsItems       NewsItem[]
+  transactions    Transaction[]
+
+  @@unique([ticker, marketId])
+  @@index([assetClass])
+  @@index([countryCode])
+}
+
+model Price {
+  id         String   @id @default(cuid())
+  securityId String
+  security   Security @relation(fields: [securityId], references: [id], onDelete: Cascade)
+  date       DateTime
+  close      Float
+  volume     Float?
+  sourceId   String?
+  source     Source?  @relation(fields: [sourceId], references: [id])
+
+  @@unique([securityId, date])
+  @@index([securityId, date])
+}
+
+model Fundamental {
+  id             String   @id @default(cuid())
+  securityId     String
+  security       Security @relation(fields: [securityId], references: [id], onDelete: Cascade)
+  asOf           DateTime
+  revenueGrowth  Float?
+  epsGrowth      Float?
+  fcfMargin      Float?
+  roic           Float?
+  netDebtToEbitda Float?
+  grossMargin    Float?
+  operatingMargin Float?
+  pe             Float?
+  forwardPe      Float?
+  evEbitda       Float?
+  peg            Float?
+  ps             Float?
+  fcfYield       Float?
+  epsRevision4w  Float? // fractional change in consensus FY EPS over ~4 weeks
+  epsRevision13w Float?
+  expectedRevenueGrowth Float?
+  expectedEpsGrowth Float?
+  moat           String? // NONE | NARROW | WIDE
+  tamTier        Int? // 1..5
+  sourceId       String?
+  source         Source?  @relation(fields: [sourceId], references: [id])
+
+  @@unique([securityId, asOf])
+}
+
+// ─────────────────────────────── Macro / regime ───────────────────────────────
+
+model MacroIndicator {
+  id       String   @id @default(cuid())
+  key      String // CPI_YOY | FEDFUNDS | ECB_MRO | BOJ_RATE | US10Y | US2Y | DXY | IG_OAS | HY_OAS | GOLD | BRENT | UNEMP_US | GDP_US ...
+  region   String // US | EU | JP | TW | GLOBAL
+  date     DateTime
+  value    Float
+  unit     String?
+  sourceId String?
+  source   Source?  @relation(fields: [sourceId], references: [id])
+
+  @@unique([key, date])
+  @@index([key, date])
+}
+
+model MarketRegime {
+  id          String   @id @default(cuid())
+  asOf        DateTime
+  regime      String // STRONG_RISK_ON | RISK_ON | NEUTRAL | RISK_OFF | CRISIS
+  score       Float // weighted -2..+2
+  driversJson String // JSON array: { indicator, value, vote, weight, rationale, sourceId }
+  createdAt   DateTime @default(now())
+
+  strategyVersions StrategyVersion[]
+
+  @@index([asOf])
+}
+
+model SecurityScore {
+  id               String   @id @default(cuid())
+  securityId       String
+  security         Security @relation(fields: [securityId], references: [id], onDelete: Cascade)
+  asOf             DateTime
+  overall          Float
+  businessQuality  Float
+  growth           Float
+  valuation        Float
+  earningsMomentum Float
+  marketMomentum   Float
+  aiExposure       Float
+  balanceSheet     Float
+  risk             Float
+  weightsJson      String // JSON: component weights used
+  contributionsJson String // JSON: component -> point contribution
+  notesJson        String // JSON: per-component short rationale strings
+  createdAt        DateTime @default(now())
+
+  @@unique([securityId, asOf])
+  @@index([asOf])
+}
+
+// ─────────────────────────────── Portfolio ───────────────────────────────
+
+model Portfolio {
+  id            String  @id @default(cuid())
+  userId        String
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String  @default("Primary")
+  baseCurrency  String  @default("USD")
+  capitalUsdMinor Int // invested capital in USD cents
+  createdAt     DateTime @default(now())
+
+  positions        PortfolioPosition[]
+  strategyVersions StrategyVersion[]
+  snapshots        PortfolioSnapshot[]
+  transactions     Transaction[]
+}
+
+model PortfolioPosition {
+  id              String    @id @default(cuid())
+  portfolioId     String
+  portfolio       Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  securityId      String
+  security        Security  @relation(fields: [securityId], references: [id])
+  quantity        Float
+  avgPriceMinor   Int // in the security's currency, minor units
+  isUserSupplied  Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+
+  @@unique([portfolioId, securityId])
+}
+
+model StrategyVersion {
+  id                String   @id @default(cuid())
+  portfolioId       String
+  portfolio         Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  version           Int
+  weekOf            DateTime
+  regimeId          String
+  regime            MarketRegime @relation(fields: [regimeId], references: [id])
+  sleeveTargetsJson String // JSON: { growth, defensiveEquity, gold, bonds, cash, diversifiers } weights
+  allocationJson    String // JSON: [{ securityId, ticker, sleeve, weight, usdMinor }]
+  fxRatesJson       String // JSON: [{ base, quote, rate, asOf, source }]
+  factorExposureJson String // JSON: { aiFactor, semiconductor, usTech, defensive, ... }
+  narrativeMd       String
+  dataHash          String // hash of inputs, for idempotency
+  previousVersionId String?
+  previousVersion   StrategyVersion?  @relation("VersionChain", fields: [previousVersionId], references: [id])
+  nextVersions      StrategyVersion[] @relation("VersionChain")
+  createdAt         DateTime @default(now())
+
+  recommendations Recommendation[]
+  riskMetric      RiskMetric?
+  stressTests     StressTest[]
+  researchReport  ResearchReport?
+  aiAnalyses      AIAnalysis[]
+  changes         StrategyChange[]
+
+  @@unique([portfolioId, version])
+  @@index([portfolioId, weekOf])
+}
+
+model StrategyChange {
+  id                String   @id @default(cuid())
+  strategyVersionId String
+  strategyVersion   StrategyVersion @relation(fields: [strategyVersionId], references: [id], onDelete: Cascade)
+  kind              String // SLEEVE | POSITION | ACTION
+  label             String // e.g. "NVDA" or "Gold sleeve"
+  previousValue     String? // e.g. "8%" or "HOLD"
+  newValue          String? // e.g. "10%" or "BUY"
+  deltaText         String? // e.g. "+2%"
+  reason            String
+  evidenceJson      String // JSON: [{ fact, sourceId }]
+}
+
+model Recommendation {
+  id                String   @id @default(cuid())
+  strategyVersionId String
+  strategyVersion   StrategyVersion @relation(fields: [strategyVersionId], references: [id], onDelete: Cascade)
+  securityId        String
+  security          Security @relation(fields: [securityId], references: [id])
+  action            String // STRONG_BUY | BUY | HOLD | REDUCE | SELL | WATCH | NO_ACTION
+  conviction        Int // 0..100
+  evidenceQuality   Int // 0..100
+  targetWeight      Float // 0..1
+  targetUsdMinor    Int
+  timeHorizon       String // SHORT | MEDIUM | LONG
+  entryStrategy     String
+  valuationView     String // CHEAP | FAIR | EXPENSIVE | UNCLEAR
+  thesisMd          String
+  catalystsJson     String // JSON string[]
+  risksJson         String // JSON string[]
+  invalidationJson  String // JSON string[]
+  bullBearBaseJson  String // JSON: { bull, base, bear, keyAssumptions[] }
+  devilsAdvocateMd  String
+  ficJson           String // JSON: { facts[], interpretations[], aiConclusion }
+  usedFallback      Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  sources RecommendationSource[]
+
+  @@unique([strategyVersionId, securityId])
+  @@index([securityId])
+}
+
+model RecommendationSource {
+  id               String  @id @default(cuid())
+  recommendationId String
+  recommendation   Recommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+  sourceId         String
+  source           Source  @relation(fields: [sourceId], references: [id])
+  relevance        String? // why this source supports the recommendation
+
+  @@unique([recommendationId, sourceId])
+}
+
+// ─────────────────────────────── Provenance ───────────────────────────────
+
+model Source {
+  id          String   @id @default(cuid())
+  type        String // FILING | EARNINGS | INVESTOR_PRESENTATION | CENTRAL_BANK | GOV_STAT | MARKET_DATA | MACRO | NEWS | METHODOLOGY
+  title       String
+  publisher   String
+  url         String?
+  publishedAt DateTime?
+  retrievedAt DateTime @default(now())
+  freshness   String // LIVE | TODAY | WEEK | HISTORICAL
+  excerpt     String?
+  isDemo      Boolean  @default(true)
+
+  prices          Price[]
+  fundamentals    Fundamental[]
+  macroIndicators MacroIndicator[]
+  newsItems       NewsItem[]
+  recommendations RecommendationSource[]
+
+  @@index([type])
+}
+
+model NewsItem {
+  id          String   @id @default(cuid())
+  securityId  String?
+  security    Security? @relation(fields: [securityId], references: [id])
+  region      String?
+  title       String
+  url         String?
+  publisher   String
+  publishedAt DateTime
+  summary     String
+  sentiment   Float? // -1..1
+  sourceId    String?
+  source      Source?  @relation(fields: [sourceId], references: [id])
+
+  @@index([publishedAt])
+  @@index([securityId])
+}
+
+// ─────────────────────────────── Risk / performance ───────────────────────────────
+
+model RiskMetric {
+  id                   String   @id @default(cuid())
+  strategyVersionId    String   @unique
+  strategyVersion      StrategyVersion @relation(fields: [strategyVersionId], references: [id], onDelete: Cascade)
+  volatility           Float
+  expectedDrawdown     Float
+  maxHistoricalDrawdown Float
+  concentrationHHI     Float
+  aiFactorExposure     Float
+  semiconductorExposure Float
+  usTechExposure       Float
+  valuationRisk        Float
+  liquidityRisk        Float
+  geopoliticalRisk     Float
+  countryExposureJson  String // JSON: { US: 0.5, ... }
+  currencyExposureJson String
+  sectorExposureJson   String
+  sharpe               Float?
+  sortino              Float?
+  createdAt            DateTime @default(now())
+}
+
+model StressTest {
+  id                String   @id @default(cuid())
+  strategyVersionId String
+  strategyVersion   StrategyVersion @relation(fields: [strategyVersionId], references: [id], onDelete: Cascade)
+  scenarioKey       String // AI_CRASH | RECESSION | INFLATION_SHOCK | GEOPOLITICAL | JAPAN_RATE_SHOCK | CUSTOM
+  label             String
+  assumptionsJson   String // JSON: { "NASDAQ": -0.30, "RATES_BPS": 150, ... }
+  estimatedImpactPct Float // portfolio-level, fraction
+  byAssetJson       String // JSON: [{ ticker, sleeve, impactPct, usdImpactMinor }]
+  isHypothetical    Boolean  @default(true)
+  createdAt         DateTime @default(now())
+}
+
+model PortfolioSnapshot {
+  id          String   @id @default(cuid())
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  date        DateTime
+  totalUsdMinor Int
+  positionsJson String // JSON: [{ ticker, quantity, priceUsd, valueUsdMinor, weight }]
+  benchmarkJson String // JSON: { SP500: 1.0234, ... } indexed to 1.0 at inception
+  createdAt   DateTime @default(now())
+
+  @@unique([portfolioId, date])
+}
+
+model Benchmark {
+  id       String   @id @default(cuid())
+  symbol   String // SP500 | NDX | MSCI_WORLD | NKY | CAC | DAX | BLENDED_R3 ...
+  name     String
+  marketId String?
+  market   Market?  @relation(fields: [marketId], references: [id])
+  date     DateTime
+  close    Float
+
+  @@unique([symbol, date])
+  @@index([symbol, date])
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  portfolioId String
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  securityId  String
+  security    Security @relation(fields: [securityId], references: [id])
+  side        String // BUY | SELL | REBALANCE
+  quantity    Float
+  priceMinor  Int
+  currency    String
+  executedAt  DateTime @default(now())
+  note        String?
+
+  @@index([portfolioId, executedAt])
+}
+
+model ResearchReport {
+  id                String   @id @default(cuid())
+  strategyVersionId String   @unique
+  strategyVersion   StrategyVersion @relation(fields: [strategyVersionId], references: [id], onDelete: Cascade)
+  weekOf            DateTime
+  markdown          String
+  sectionsJson      String // JSON: { executiveSummary, marketRegime, macro, allocation, ... }
+  createdAt         DateTime @default(now())
+}
+
+model AIAnalysis {
+  id                String   @id @default(cuid())
+  strategyVersionId String?
+  strategyVersion   StrategyVersion? @relation(fields: [strategyVersionId], references: [id], onDelete: Cascade)
+  kind              String // RECOMMENDATIONS | NARRATIVE | COMMITTEE | DEVILS_ADVOCATE | ADVISOR
+  model             String
+  promptHash        String
+  inputJson         String
+  outputJson        String
+  usedFallback      Boolean
+  tokensIn          Int?
+  tokensOut         Int?
+  createdAt         DateTime @default(now())
+
+  @@index([kind, createdAt])
+}
+
+model ConflictDisclosure {
+  id          String  @id @default(cuid())
+  scope       String // PROVIDER | AI_VENDOR | DATA_VENDOR
+  description String
+  securityId  String?
+  active      Boolean @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model FxRate {
+  id       String   @id @default(cuid())
+  base     String
+  quote    String
+  rate     Float
+  asOf     DateTime
+  sourceId String?
+  createdAt DateTime @default(now())
+
+  @@unique([base, quote, asOf])
+}

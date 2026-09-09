@@ -1,0 +1,68 @@
+{
+  "name": "ai-global-investment-strategist",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "node scripts/build.mjs",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "tsx prisma/reset.ts && npm run db:seed",
+    "cron:weekly": "tsx scripts/run-weekly.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@prisma/adapter-better-sqlite3": "6.19.3",
+    "@prisma/client": "6.19.3",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^13.0.3",
+    "decimal.js": "^10.4.3",
+    "jose": "^5.9.6",
+    "next": "15.5.25",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "recharts": "^2.15.0",
+    "server-only": "^0.0.1",
+    "zod": "^3.24.1"
+  },
+  "overrides": {
+    "@prisma/adapter-better-sqlite3": {
+      "better-sqlite3": "^13.0.3"
+    }
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "15.5.25",
+    "prisma": "6.19.3",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "prisma@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.28.2": true,
+    "esbuild@0.21.5": true,
+    "sharp@0.33.5": true,
+    "better-sqlite3@13.0.3": true
+  }
+}

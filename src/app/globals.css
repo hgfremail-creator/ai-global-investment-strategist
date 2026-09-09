@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* ─────────────────── Institutional terminal theme ─────────────────── */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+
+  --color-bg: #070a12;
+  --color-surface: #0d1220;
+  --color-surface-2: #131a2b;
+  --color-border: #1e2740;
+  --color-fg: #e6ebf5;
+  --color-muted: #8b98b4;
+  --color-faint: #55617d;
+
+  --color-accent: #4c8dff;
+  --color-buy: #22c55e;
+  --color-buy-strong: #16a34a;
+  --color-hold: #eab308;
+  --color-reduce: #f97316;
+  --color-sell: #ef4444;
+  --color-watch: #94a3b8;
+  --color-gold: #d4af37;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --color-bg: #f4f6fb;
+    --color-surface: #ffffff;
+    --color-surface-2: #eef1f8;
+    --color-border: #d7dcea;
+    --color-fg: #131a2b;
+    --color-muted: #55617d;
+    --color-faint: #8b98b4;
+  }
+}
+
+/* utilities */
+.tnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+}
+
+.hairline {
+  border-color: var(--color-border);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

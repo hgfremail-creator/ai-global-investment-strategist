@@ -1,0 +1,25 @@
+# Production database target. `docker compose up -d db` then set in .env:
+#   DATABASE_URL="postgresql://strategist:strategist@localhost:5432/strategist?schema=public"
+#   DATABASE_PROVIDER="postgresql"
+# and change prisma/schema.prisma datasource `provider` to "postgresql"
+# (swap the adapter in src/lib/db.ts to @prisma/adapter-pg — see ARCHITECTURE.md §1).
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: strategist
+      POSTGRES_PASSWORD: strategist
+      POSTGRES_DB: strategist
+    ports:
+      - "5432:5432"
+    volumes:
+      - strategist_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U strategist"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  strategist_pgdata:
