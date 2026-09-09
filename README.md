@@ -10,6 +10,15 @@ keeps an immutable history of every recommendation.
 > involve risk, including loss of capital. See [`/legal`](src/app/legal/page.tsx) and
 > `docs/COMPLIANCE_CHECKLIST.md`.
 
+## Deploy
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fhgfremail-creator%2Fai-global-investment-strategist&project-name=ai-global-investment-strategist&repository-name=ai-global-investment-strategist&env=DATABASE_PROVIDER,DATABASE_URL,AUTH_SECRET,CRON_SECRET&envDescription=DATABASE_PROVIDER%20must%20be%20postgresql%3B%20DATABASE_URL%20is%20your%20Postgres%20connection%20string%3B%20AUTH_SECRET%20%2F%20CRON_SECRET%20are%20random%20strings&envLink=https%3A%2F%2Fgithub.com%2Fhgfremail-creator%2Fai-global-investment-strategist%2Fblob%2Fmain%2FDEPLOY.md)
+
+The button imports the repo and prompts for the four required env vars. You still need to
+**add a Postgres database** (Vercel Storage → Postgres, or Neon) and **seed the universe
+once** — see [`DEPLOY.md`](DEPLOY.md) for both. Optional keys (`ANTHROPIC_API_KEY`,
+`FRED_API_KEY`, `NEWSAPI_KEY`) can be added later in the project settings.
+
 ---
 
 ## Status
