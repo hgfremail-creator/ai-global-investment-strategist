@@ -3,6 +3,7 @@ import { pageContext } from "@/services/page";
 import { getLatestStrategy } from "@/services/strategyRead";
 import { getPerformance } from "@/services/performance";
 import { Card, Stat, Empty, DemoBadge } from "@/components/ui";
+import { BuildStrategyButton } from "@/components/BuildStrategyButton";
 import { Donut, LegendList } from "@/components/charts/Donut";
 import { PerformanceChart, DrawdownChart } from "@/components/charts/PerformanceChart";
 import { formatMoney, formatPercent } from "@/lib/money";
@@ -46,6 +47,16 @@ export default async function DashboardPage() {
           {s ? `Strategy v${s.version}` : "No strategy yet"} · <DemoBadge />
         </span>
       </div>
+
+      {!s && (
+        <Card title="Build your first strategy">
+          <p className="mb-3 text-sm text-[var(--color-muted)]">
+            Your profile is set. Click below to run the analysis and construct the portfolio — it
+            takes up to a minute the first time.
+          </p>
+          <BuildStrategyButton />
+        </Card>
+      )}
 
       <Card title="Your portfolio">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

@@ -38,15 +38,26 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   async function enterDemo() {
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/auth/demo", { method: "POST" });
-    setLoading(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Could not open a demo session");
-      return;
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 25000);
+      const res = await fetch("/api/auth/demo", { method: "POST", signal: ctrl.signal });
+      clearTimeout(t);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? `Could not open a session (${res.status})`);
+        setLoading(false);
+        return;
+      }
+      window.location.href = "/dashboard";
+    } catch (e) {
+      setError(
+        (e as Error).name === "AbortError"
+          ? "The server took too long to respond. Try again."
+          : (e as Error).message,
+      );
+      setLoading(false);
     }
-    router.replace("/dashboard");
-    router.refresh();
   }
 
   const field =
