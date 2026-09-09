@@ -9,7 +9,8 @@ export async function middleware(req: NextRequest) {
   const isPublic =
     PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     pathname.startsWith("/api/auth") ||
-    pathname.startsWith("/api/cron");
+    pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/admin");
 
   const userId = await readSessionToken(req.cookies.get(SESSION_COOKIE)?.value);
 

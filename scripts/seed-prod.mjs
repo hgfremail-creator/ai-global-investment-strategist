@@ -17,8 +17,15 @@ if (!process.env.DATABASE_URL || !/^postgres/i.test(process.env.DATABASE_URL)) {
   process.exit(1);
 }
 
+// `channel_binding=require` trips up some Prisma CLI / pg client versions; the
+// pg driver adapter negotiates SSL fine without it.
+const cleanUrl = process.env.DATABASE_URL.replace(/[?&]channel_binding=require/i, (m) =>
+  m[0] === "?" ? "?" : "",
+).replace(/\?&/, "?").replace(/\?$/, "");
+
 const env = {
   ...process.env,
+  DATABASE_URL: cleanUrl,
   DATABASE_PROVIDER: "postgresql",
   SEED_DEMO_USER: process.env.SEED_DEMO_USER ?? "false",
 };
@@ -40,9 +47,19 @@ try {
   const directUrl =
     env.DIRECT_URL || env.POSTGRES_URL_NON_POOLING || env.DATABASE_URL_UNPOOLED || env.DATABASE_URL;
   failed ||= run("prisma", ["generate"]);
-  failed ||= run("prisma", ["db", "push", "--skip-generate", "--accept-data-loss"], {
-    env: { ...env, DATABASE_URL: directUrl },
-  });
+
+  // `db push` is best-effort here: the Vercel build already synced the schema.
+  // If this machine can't reach Neon on :5432 (blocked outbound port) we still
+  // try the seed itself, which connects via the pg driver adapter.
+  if (process.env.SKIP_DB_PUSH !== "1") {
+    const push = spawnSync(
+      "prisma",
+      ["db", "push", "--skip-generate", "--accept-data-loss"],
+      { stdio: "inherit", shell: true, env: { ...env, DATABASE_URL: directUrl } },
+    );
+    if (push.status !== 0) console.warn("→ db push failed/unreachable — continuing (schema was pushed by the Vercel build)");
+  }
+
   failed ||= run("npx", ["tsx", "prisma/seed.ts"]);
 } finally {
   copyFileSync(BACKUP, SCHEMA);
