@@ -21,11 +21,20 @@ async function handle(req: Request) {
   if (!authorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const force = new URL(req.url).searchParams.get("force") === "1";
-  const existing = await prisma.security.count();
-  if (existing > 0 && !force) {
-    return NextResponse.json({ ok: true, skipped: true, securities: existing, note: "already seeded — pass ?force=1 to re-run" });
+  const [securities, prices, versions] = await Promise.all([
+    prisma.security.count(),
+    prisma.price.count(),
+    prisma.strategyVersion.count(),
+  ]);
+  const complete = securities > 40 && prices > 5000 && versions > 0;
+  if (complete && !force) {
+    return NextResponse.json({
+      ok: true, skipped: true, securities, prices, versions,
+      note: "already seeded — pass ?force=1 to re-run",
+    });
   }
 
+  // Every step is idempotent, so calling this again after a timeout resumes safely.
   const { seedAll } = await import("@/data/seed-core");
   const started = Date.now();
   const res = await seedAll();
