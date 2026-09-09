@@ -19,6 +19,7 @@
     "db:seed": "tsx --env-file-if-exists=.env prisma/seed.ts",
     "db:ingest": "tsx --env-file-if-exists=.env scripts/ingest.ts",
     "db:reset": "tsx prisma/reset.ts && npm run db:seed",
+    "db:seed:prod": "node scripts/seed-prod.mjs",
     "cron:weekly": "tsx --env-file-if-exists=.env scripts/run-weekly.ts",
     "verify:history": "tsx --env-file-if-exists=.env scripts/verify-immutability.ts",
     "verify:no-secrets": "node scripts/verify-no-secrets.mjs"

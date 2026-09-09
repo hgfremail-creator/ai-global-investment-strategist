@@ -52,20 +52,22 @@ Trigger the first deployment (push to `main`, or **Deploy** in the dashboard). T
 
 ## 6. Seed the universe (one-time)
 
-The database now has the schema but no securities/prices. Seed it from your machine against
-the production DB:
+The database now has the schema but no securities/prices. From your machine, with the
+production connection string:
 
 ```bash
-vercel env pull .env.production        # pulls DATABASE_URL etc.
-DATABASE_PROVIDER=postgresql \
-DATABASE_URL="$(grep POSTGRES_PRISMA_URL .env.production | cut -d= -f2- | tr -d '\"')" \
-SEED_DEMO_USER=false \
-  npx tsx prisma/seed.ts
+git pull                                   # get scripts/seed-prod.mjs
+DATABASE_URL="postgres://…pooled connection string…" npm run db:seed:prod
 ```
 
-(Or keep `SEED_DEMO_USER` unset to also create the `demo@strategist.app` / `demodemo`
-account.) The seed ingests ~13k simulated price points; expect it to take a minute or two
-against a remote DB.
+`db:seed:prod` switches the schema to postgres, runs `prisma db push`, seeds the universe +
+~13k simulated price points (~1–2 min against a remote DB), then restores your local schema.
+It skips the `demo@strategist.app` account by default — set `SEED_DEMO_USER=` (empty) to
+include it.
+
+Get the connection string from Vercel: **Storage → your database → `.env.local` tab** (copy
+the pooled `DATABASE_URL` / `POSTGRES_PRISMA_URL` value), or `vercel env pull` if you have
+the CLI linked.
 
 ## 7. Verify
 
