@@ -35,11 +35,41 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     router.refresh();
   }
 
+  async function enterDemo() {
+    setLoading(true);
+    setError(null);
+    const res = await fetch("/api/auth/demo", { method: "POST" });
+    setLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Could not open a demo session");
+      return;
+    }
+    router.replace("/dashboard");
+    router.refresh();
+  }
+
   const field =
     "w-full rounded-md border border-[var(--color-border)] bg-[var(--color-surface-2)] px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)]";
 
   return (
     <form onSubmit={submit} className="card space-y-3 p-5">
+      {mode === "login" && (
+        <>
+          <button
+            type="button"
+            onClick={enterDemo}
+            disabled={loading}
+            className="w-full rounded-md bg-[var(--color-accent)] px-3 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {loading ? "Opening…" : "Enter — no signup"}
+          </button>
+          <p className="text-center text-[11px] text-[var(--color-faint)]">
+            Drops you into a ready-made $100,000 portfolio. Or sign in below.
+          </p>
+          <div className="my-1 border-t border-[var(--color-border)]" />
+        </>
+      )}
       {mode === "register" && (
         <div>
           <label className="mb-1 block text-xs text-[var(--color-muted)]">Name (optional)</label>
