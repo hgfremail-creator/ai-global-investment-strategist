@@ -17,7 +17,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:ingest": "tsx scripts/ingest.ts",
     "db:reset": "tsx prisma/reset.ts && npm run db:seed",
-    "cron:weekly": "tsx scripts/run-weekly.ts"
+    "cron:weekly": "tsx scripts/run-weekly.ts",
+    "verify:history": "tsx scripts/verify-immutability.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

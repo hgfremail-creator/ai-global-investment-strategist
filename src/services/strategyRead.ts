@@ -76,6 +76,101 @@ export async function getStrategyHistory(portfolioId: string) {
   });
 }
 
+export async function getSleeveHistory(portfolioId: string) {
+  const versions = await prisma.strategyVersion.findMany({
+    where: { portfolioId },
+    orderBy: { version: "asc" },
+    include: { regime: true },
+  });
+  return versions.map((v) => ({
+    version: v.version,
+    weekOf: v.weekOf.toISOString().slice(0, 10),
+    regime: v.regime.regime,
+    sleeves: fromJson<Record<Sleeve, number>>(v.sleeveTargetsJson, {} as Record<Sleeve, number>),
+    factor: fromJson<FactorExposure>(v.factorExposureJson, {} as FactorExposure),
+  }));
+}
+
+export type VersionComparison = {
+  a: { version: number; weekOf: string; regime: string; regimeScore: number };
+  b: { version: number; weekOf: string; regime: string; regimeScore: number };
+  sleeveDeltas: { sleeve: Sleeve; a: number; b: number; delta: number }[];
+  positionDeltas: {
+    ticker: string;
+    name: string;
+    a: number;
+    b: number;
+    delta: number;
+    kind: "added" | "removed" | "reweighted" | "unchanged";
+  }[];
+  factorDeltas: { key: string; a: number; b: number; delta: number }[];
+  changes: { kind: string; label: string; previousValue: string | null; newValue: string | null; deltaText: string | null; reason: string }[];
+};
+
+export async function getVersionComparison(
+  portfolioId: string,
+  va: number,
+  vb: number,
+): Promise<VersionComparison | null> {
+  const [a, b] = await Promise.all([
+    prisma.strategyVersion.findFirst({ where: { portfolioId, version: va }, include: { regime: true } }),
+    prisma.strategyVersion.findFirst({
+      where: { portfolioId, version: vb },
+      include: { regime: true, changes: true },
+    }),
+  ]);
+  if (!a || !b) return null;
+
+  const aAlloc = fromJson<AllocationRow[]>(a.allocationJson, []);
+  const bAlloc = fromJson<AllocationRow[]>(b.allocationJson, []);
+  const aSleeves = fromJson<Record<Sleeve, number>>(a.sleeveTargetsJson, {} as Record<Sleeve, number>);
+  const bSleeves = fromJson<Record<Sleeve, number>>(b.sleeveTargetsJson, {} as Record<Sleeve, number>);
+  const aFactor = fromJson<FactorExposure>(a.factorExposureJson, {} as FactorExposure);
+  const bFactor = fromJson<FactorExposure>(b.factorExposureJson, {} as FactorExposure);
+
+  const sleeveKeys = Array.from(new Set([...Object.keys(aSleeves), ...Object.keys(bSleeves)])) as Sleeve[];
+  const sleeveDeltas = sleeveKeys
+    .map((s) => ({ sleeve: s, a: aSleeves[s] ?? 0, b: bSleeves[s] ?? 0, delta: (bSleeves[s] ?? 0) - (aSleeves[s] ?? 0) }))
+    .filter((x) => x.a > 0.001 || x.b > 0.001)
+    .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
+
+  const aByT = new Map(aAlloc.map((r) => [r.ticker, r]));
+  const bByT = new Map(bAlloc.map((r) => [r.ticker, r]));
+  const allTickers = Array.from(new Set([...aByT.keys(), ...bByT.keys()]));
+  const positionDeltas = allTickers
+    .map((t) => {
+      const aw = aByT.get(t)?.weight ?? 0;
+      const bw = bByT.get(t)?.weight ?? 0;
+      const kind: "added" | "removed" | "reweighted" | "unchanged" =
+        aw === 0 ? "added" : bw === 0 ? "removed" : Math.abs(bw - aw) >= 0.005 ? "reweighted" : "unchanged";
+      return {
+        ticker: t,
+        name: bByT.get(t)?.name ?? aByT.get(t)?.name ?? t,
+        a: aw,
+        b: bw,
+        delta: bw - aw,
+        kind,
+      };
+    })
+    .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta));
+
+  const factorDeltas = (["aiFactor", "semiconductor", "usTech", "defensive"] as const).map((k) => ({
+    key: k,
+    a: aFactor[k] ?? 0,
+    b: bFactor[k] ?? 0,
+    delta: (bFactor[k] ?? 0) - (aFactor[k] ?? 0),
+  }));
+
+  return {
+    a: { version: a.version, weekOf: a.weekOf.toISOString().slice(0, 10), regime: a.regime.regime, regimeScore: a.regime.score },
+    b: { version: b.version, weekOf: b.weekOf.toISOString().slice(0, 10), regime: b.regime.regime, regimeScore: b.regime.score },
+    sleeveDeltas,
+    positionDeltas,
+    factorDeltas,
+    changes: vb === va + 1 ? b.changes : [],
+  };
+}
+
 export async function getStrategyVersion(portfolioId: string, version: number) {
   const sv = await prisma.strategyVersion.findFirst({
     where: { portfolioId, version },

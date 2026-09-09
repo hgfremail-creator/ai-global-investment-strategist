@@ -23,7 +23,7 @@ keeps an immutable history of every recommendation.
 | **5** | AI reasoning layer: Anthropic structured-output client + Zod + guardrails + deterministic fallback writer + `AIAnalysis` audit; per-position thesis/catalysts/risks/invalidation/committee/devil's-advocate; Opportunities page + "why not" rejected candidates | ✅ done |
 | **6** | Risk engine: synthetic-portfolio vol/drawdown/Sharpe/Sortino (correlation-floor blended), HHI, factor look-through, valuation/liquidity/geopolitical gauges; 5 stress-test scenarios; Risk dashboard | ✅ done |
 | **7** | Weekly strategy engine: movable demo clock, full refresh pipeline, week-over-week diff with concrete evidence per change, incumbency bonus (low turnover), 15-section weekly report, Weekly Review page + "run now" button | ✅ done |
-| 8 | Historical tracking + version comparison | ⬜ |
+| **8** | Historical tracking: immutable version browser, side-by-side compare (sleeve/position/factor deltas + reasons), stacked sleeve-history chart, per-version historical snapshot; `npm run verify:history` immutability check | ✅ done |
 | 9 | Stress-test UI, what-if tool, natural-language advisor | ⬜ |
 | 10–12 | UI refinement, full test sweep, production hardening | ⬜ |
 

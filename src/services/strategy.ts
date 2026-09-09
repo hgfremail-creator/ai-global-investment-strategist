@@ -17,6 +17,7 @@ import {
   equitySleeveFor,
 } from "@/engine/sleeves";
 import { buildPortfolio, type Candidate, type ExistingHolding } from "@/engine/allocation";
+import { computeChanges } from "@/engine/diff";
 import type { FactorLoadings } from "@/engine/aiExposure";
 import { getFxRates, toUsd } from "@/data/fx";
 import type { Currency } from "@/lib/enums";
@@ -303,8 +304,6 @@ function buildNarrative(a: {
   ].filter((l) => l !== "").join("\n");
 }
 
-type AllocRow = { ticker: string; name: string; sleeve: string; weight: number };
-
 async function diffAndPersistChanges(
   strategyVersionId: string,
   prevAllocJson: string | null,
@@ -312,68 +311,15 @@ async function diffAndPersistChanges(
   prevSleeveJson: string | null,
   newSleeveJson: string,
 ) {
-  const prevAlloc = fromJson<AllocRow[]>(prevAllocJson, []);
-  const newAlloc = fromJson<AllocRow[]>(newAllocJson, []);
-  const prevSleeves = fromJson<Record<string, number>>(prevSleeveJson, {});
-  const newSleeves = fromJson<Record<string, number>>(newSleeveJson, {});
-
-  const changes: {
-    kind: string; label: string; previousValue: string | null; newValue: string | null;
-    deltaText: string | null; reason: string; evidenceJson: string;
-  }[] = [];
-
-  // sleeve-level
-  for (const s of SLEEVES) {
-    const p = prevSleeves[s] ?? 0;
-    const n = newSleeves[s] ?? 0;
-    if (Math.abs(n - p) >= 0.007) {
-      changes.push({
-        kind: "SLEEVE",
-        label: SLEEVE_LABELS[s],
-        previousValue: `${(p * 100).toFixed(1)}%`,
-        newValue: `${(n * 100).toFixed(1)}%`,
-        deltaText: `${n > p ? "+" : ""}${((n - p) * 100).toFixed(1)}%`,
-        reason: n > p ? "Increased on regime / macro signals favouring this sleeve." : "Reduced on regime / macro signals.",
-        evidenceJson: toJson([]),
-      });
-    }
-  }
-
-  // position-level
-  const prevByT = new Map(prevAlloc.map((r) => [r.ticker, r.weight]));
-  const newByT = new Map(newAlloc.map((r) => [r.ticker, r.weight]));
-  for (const r of newAlloc) {
-    const p = prevByT.get(r.ticker);
-    if (p == null) {
-      changes.push({
-        kind: "POSITION", label: r.ticker, previousValue: "0%",
-        newValue: `${(r.weight * 100).toFixed(1)}%`, deltaText: `+${(r.weight * 100).toFixed(1)}%`,
-        reason: "New position — entered the portfolio on an improved relative score / sleeve fit.",
-        evidenceJson: toJson([]),
-      });
-    } else if (Math.abs(r.weight - p) >= 0.007) {
-      changes.push({
-        kind: "POSITION", label: r.ticker, previousValue: `${(p * 100).toFixed(1)}%`,
-        newValue: `${(r.weight * 100).toFixed(1)}%`, deltaText: `${r.weight > p ? "+" : ""}${((r.weight - p) * 100).toFixed(1)}%`,
-        reason: r.weight > p ? "Weight increased on relative score / momentum improvement." : "Weight trimmed on relative score / constraint pressure.",
-        evidenceJson: toJson([]),
-      });
-    }
-  }
-  for (const r of prevAlloc) {
-    if (!newByT.has(r.ticker)) {
-      changes.push({
-        kind: "POSITION", label: r.ticker, previousValue: `${(r.weight * 100).toFixed(1)}%`,
-        newValue: "0%", deltaText: `-${(r.weight * 100).toFixed(1)}%`,
-        reason: "Exited — fell below the minimum score / displaced by a higher-ranked name.",
-        evidenceJson: toJson([]),
-      });
-    }
-  }
-
+  const changes = computeChanges(
+    fromJson<{ ticker: string; weight: number }[]>(prevAllocJson ?? "", []),
+    fromJson<{ ticker: string; weight: number }[]>(newAllocJson, []),
+    fromJson<Record<string, number>>(prevSleeveJson ?? "", {}),
+    fromJson<Record<string, number>>(newSleeveJson, {}),
+  );
   if (changes.length) {
     await prisma.strategyChange.createMany({
-      data: changes.map((c) => ({ ...c, strategyVersionId })),
+      data: changes.map((c) => ({ ...c, strategyVersionId, evidenceJson: toJson([]) })),
     });
   }
 }
