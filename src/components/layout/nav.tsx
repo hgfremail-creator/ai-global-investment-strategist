@@ -13,6 +13,7 @@ const NAV = [
   { href: "/markets", label: "Markets", hint: "Global market dashboard" },
   { href: "/research", label: "Research", hint: "Company analysis" },
   { href: "/risk", label: "Risk", hint: "Portfolio risk" },
+  { href: "/what-if", label: "What-If", hint: "Scenario & recompute" },
   { href: "/weekly-review", label: "Weekly Review", hint: "Latest report" },
   { href: "/history", label: "History", hint: "Previous strategies" },
   { href: "/advisor", label: "AI Advisor", hint: "Ask questions" },

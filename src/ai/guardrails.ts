@@ -67,3 +67,12 @@ export function applyGuardrails(out: AiBatchOutput, input: ReasoningInput): Guar
 export function isRecoverable(): boolean {
   return true;
 }
+
+/** Free-text guardrail for the conversational advisor. */
+export function applyGuardrailsText(text: string): { ok: boolean; violations: string[] } {
+  const violations: string[] = [];
+  for (const { re, label } of FORBIDDEN_PHRASES) {
+    if (re.test(text)) violations.push(`${label} ("${text.match(re)?.[0]}")`);
+  }
+  return { ok: violations.length === 0, violations };
+}
