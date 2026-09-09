@@ -26,7 +26,8 @@ keeps an immutable history of every recommendation.
 | **8** | Historical tracking: immutable version browser, side-by-side compare (sleeve/position/factor deltas + reasons), stacked sleeve-history chart, per-version historical snapshot; `npm run verify:history` immutability check | ✅ done |
 | **9** | Natural-language advisor (LLM path + deterministic intent router, answers grounded in stored data with citations); What-If tool (recompute for changed capital/risk/horizon/excluded sectors/min-gold + custom market shock) | ✅ done |
 | **10** | Paper-performance engine (chains each version's allocation over its live period → NAV vs MSCI World + blended benchmark), performance + drawdown charts on Dashboard, a11y (skip link, aria-current, focus rings) | ✅ done |
-| 11–12 | Full spec §47 test sweep, production hardening | ⬜ |
+| **11** | Full spec §47 sweep: 60 unit tests + 9 integration tests (temp SQLite DB, real pipeline) covering 100%-allocation, risk/horizon/capital recalculation, weekly-change identification, source attachment, no-rec-without-evidence, immutability, determinism, currency; `verify:no-secrets` client-bundle scan; source-hygiene test; SECURITY + COMPLIANCE checklists | ✅ done |
+| 12 | Production hardening (Postgres path, CSP, rate limits, CI, final docs) | ⬜ |
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the full design and roadmap.
 
@@ -59,7 +60,11 @@ node -e "console.log('CRON_SECRET='+require('crypto').randomBytes(32).toString('
 | `npm run dev` | Next dev server |
 | `npm run build` / `npm start` | Production build (via `scripts/build.mjs`) and serve |
 | `npm run typecheck` | `tsc --noEmit` |
-| `npm test` | Vitest engine/unit suite |
+| `npm test` | Vitest unit suite (pure engines, ~60 tests) |
+| `npm run test:integration` | End-to-end pipeline against a throwaway SQLite DB |
+| `npm run test:all` | Both suites |
+| `npm run verify:history` | Assert prior strategy versions are immutable after a weekly run |
+| `npm run verify:no-secrets` | Scan the built client bundle for leaked secrets (run after `build`) |
 | `npm run db:migrate` | Apply Prisma migrations (dev) |
 | `npm run db:seed` | Seed demo data (incl. initial data ingestion) |
 | `npm run db:ingest` | Refresh market/macro/news data (`-- --lookback N`) |

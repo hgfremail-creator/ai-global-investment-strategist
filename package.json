@@ -11,17 +11,20 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:all": "vitest run && vitest run --config vitest.integration.config.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts",
-    "db:ingest": "tsx scripts/ingest.ts",
+    "db:seed": "tsx --env-file-if-exists=.env prisma/seed.ts",
+    "db:ingest": "tsx --env-file-if-exists=.env scripts/ingest.ts",
     "db:reset": "tsx prisma/reset.ts && npm run db:seed",
-    "cron:weekly": "tsx scripts/run-weekly.ts",
-    "verify:history": "tsx scripts/verify-immutability.ts"
+    "cron:weekly": "tsx --env-file-if-exists=.env scripts/run-weekly.ts",
+    "verify:history": "tsx --env-file-if-exists=.env scripts/verify-immutability.ts",
+    "verify:no-secrets": "node scripts/verify-no-secrets.mjs"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx --env-file-if-exists=.env prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
