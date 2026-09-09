@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/db";
 
+export const maxDuration = 300; // seconds — the weekly review is heavy
+
 function authorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
+  // Vercel Cron sends `Authorization: Bearer $CRON_SECRET` automatically when the
+  // CRON_SECRET env var is set; manual callers send the same header.
   const header = req.headers.get("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   const a = Buffer.from(token);
@@ -12,7 +16,7 @@ function authorized(req: Request): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-export async function POST(req: Request) {
+async function handle(req: Request) {
   if (!authorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -37,3 +41,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true, ranAt: new Date().toISOString(), results });
 }
+
+// Vercel Cron issues GET; keep POST for manual / scripted invocation.
+export const GET = handle;
+export const POST = handle;

@@ -56,10 +56,9 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - run: npm i @prisma/adapter-pg pg
-      # swap the datasource provider for the Postgres run
+      # swap the datasource provider and sync the schema (migrations are SQLite-specific)
       - run: sed -i 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma
       - run: npx prisma generate
-      - run: npx prisma migrate deploy
+      - run: npx prisma db push --skip-generate
       - run: npm run db:seed
       - run: npm run test:integration

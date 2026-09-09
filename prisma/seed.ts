@@ -14,6 +14,10 @@ console.log(
   `  ingested: ${res.ingest.prices} prices, ${res.ingest.fundamentals} fundamentals, ` +
     `${res.ingest.macro} macro points, ${res.ingest.benchmarks} benchmark points, ${res.ingest.news} news`,
 );
-console.log(`  demo user demo@strategist.app / demodemo — strategy v${res.version}`);
+console.log(
+  res.demoUser
+    ? `  demo user demo@strategist.app / demodemo — strategy v${res.version}`
+    : "  demo user skipped (SEED_DEMO_USER=false)",
+);
 console.log("Seed complete.");
 process.exit(0);

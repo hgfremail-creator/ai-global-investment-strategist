@@ -77,11 +77,20 @@ export async function seedDemoUser(opts: {
   return { userId: user.id, portfolioId: portfolio.id };
 }
 
-/** Full seed used by prisma/seed.ts and the integration harness. */
+/**
+ * Full seed used by prisma/seed.ts and the integration harness.
+ * The universe + market data are always seeded (the app needs them). The demo
+ * user/portfolio/strategy is skipped when SEED_DEMO_USER=false (e.g. production).
+ */
 export async function seedAll() {
   const u = await seedUniverse();
-  const { portfolioId } = await seedDemoUser();
   const ingest = await ingestAll({ lookbackDays: 400 });
+
+  if (process.env.SEED_DEMO_USER === "false") {
+    return { ...u, ingest, portfolioId: null as string | null, version: 0, demoUser: false };
+  }
+
+  const { portfolioId } = await seedDemoUser();
   const res = await generateStrategy(portfolioId, { reason: "seed", weekOf: new Date(DEMO_AS_OF) });
-  return { ...u, portfolioId, ingest, version: res.version };
+  return { ...u, portfolioId, ingest, version: res.version, demoUser: true };
 }
