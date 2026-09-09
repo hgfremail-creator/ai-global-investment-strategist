@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaBetterSQLite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { sqliteUrl } from "./db-path";
 
 // Prisma runs engine-free here (engineType = "client" + a driver adapter) so it
@@ -7,16 +8,13 @@ import { sqliteUrl } from "./db-path";
 //
 // Production PostgreSQL (e.g. Vercel): set DATABASE_PROVIDER=postgresql + a
 // postgres DATABASE_URL. `npm run build` then swaps the schema datasource
-// provider and runs `prisma db push`; the branch below uses @prisma/adapter-pg
-// (already a dependency). See DEPLOY.md.
+// provider and runs `prisma db push`. Both adapters are imported statically;
+// only the configured one is instantiated. See DEPLOY.md.
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function makeAdapter(): any {
+function makeAdapter() {
   if ((process.env.DATABASE_PROVIDER ?? "sqlite") === "postgresql") {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaPg } = require("@prisma/adapter-pg");
     return new PrismaPg({ connectionString: process.env.DATABASE_URL });
   }
   return new PrismaBetterSQLite3({ url: sqliteUrl() });

@@ -31,7 +31,9 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     "@prisma/client",
     "@prisma/adapter-better-sqlite3",
+    "@prisma/adapter-pg",
     "better-sqlite3",
+    "pg",
     "bcryptjs",
   ],
   async headers() {
